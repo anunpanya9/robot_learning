@@ -58,8 +58,10 @@
       <geom name="tray_wall_nx" type="box" pos="-0.066 0 0.018" size="0.006 0.066 0.015" material="traymat"/>
       <geom name="tray_wall_py" type="box" pos="0 0.066 0.018" size="0.066 0.006 0.015" material="traymat"/>
       <geom name="tray_wall_ny" type="box" pos="0 -0.066 0.018" size="0.066 0.006 0.015" material="traymat"/>
-      <!-- site กลางถาด: จุดเป้าหมายตอนวางวัตถุ + ใช้เช็ค success -->
-      <site name="tray_center" pos="0 0 0.02" size="0.01" rgba="0 1 0 0.3"/>
+      <!-- site กลางถาด: จุดเป้าหมายตอนวางวัตถุ + ใช้เช็ค success.
+           group="3" → MuJoCo ไม่ render (ไม่ให้โผล่ในภาพ dataset จน VLA สับสน)
+           แต่โค้ดยังอ่านตำแหน่งได้ปกติ -->
+      <site name="tray_center" group="3" pos="0 0 0.02" size="0.01" rgba="0 1 0 0.3"/>
     </body>
   </worldbody>
 
