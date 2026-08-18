@@ -8,8 +8,9 @@
    → SmolVLA policy → หุ่น SO-101 หยิบลูกบอลตามสีใส่ถาด (MuJoCo)
 ```
 
-สถานะปัจจุบัน: **Phase 1 = ลูกบอล (ball) 5 สี** — FSM เก็บ dataset สำเร็จ 100%
-(cube เป็น Phase 2 — jaw ทรงโค้งคีบมุม cube ไม่เสถียร ดู [docs/GRASP.md](docs/GRASP.md))
+สถานะปัจจุบัน: **3 ทรง (ball / cube / cylinder) × 5 สี** — หุ่นคีบแบบ "ก้ามปู"
+(นิ้วประกบซ้าย-ขวาแนวนอน) เก็บ dataset สำเร็จ **100% (15/15)** ทุกทรง
+(ดูรายละเอียดการ calibrate ใน [docs/GRASP.md](docs/GRASP.md) §8)
 
 ![FSM หยิบลูกบอลเขียวใส่ถาด](docs/media/fsm_demo.gif)
 
@@ -124,8 +125,9 @@ docs/                  ARCHITECTURE.md, GRASP.md (จุดสำคัญเช
 
 ## Roadmap
 
-- [x] Phase 1: ball 5 สี — sim + dataset + deploy pipeline ครบ
-- [ ] Phase 2: cube (ปรับ jaw geometry / grasp), routine `dump_tray` จริง
+- [x] sim + dataset + deploy pipeline ครบ
+- [x] คีบแบบก้ามปู 3 ทรง (ball/cube/cylinder) × 5 สี — success 100%
+- [ ] routine `dump_tray` จริง (เทถาด)
 - [ ] เก็บ dataset เต็ม + train SmolVLA จริง + วัด success rate ของ policy
 - [ ] ต่อ Ollama + mic จริง, ทดสอบ voice end-to-end
 - [ ] (option) sim-to-real: SO-101 ตัวจริง

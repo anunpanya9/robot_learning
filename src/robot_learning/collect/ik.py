@@ -31,9 +31,10 @@ _SOLVER = "daqp"
 _DT = 0.02
 
 # ท่าอ้างอิงสำหรับ orientation ของ pinch ที่ IK จะเล็ง.
-# side-grasp: jaw เฉียงเข้าหาลูกเกือบแนวนอน (ปลาย jaw ไม่แตะพื้น z≈0.025)
-# แทนท่าเดิมที่ jaw ชี้ดิ่งลง (ปลายเฉียดพื้น). ดู docs/GRASP.md §7
-_GRASP_REF_QPOS = (0.0, 0.30, 0.60, 0.30, 0.0, 0.5)
+# "ก้ามปู": หมุน wrist_roll≈96° ให้นิ้วสองข้างประกบซ้าย-ขวา (คีบแนวนอน แบบ
+# gripper parallel) เข้าหาลูกจากด้านข้าง — เหมาะกับ sphere/cube/cylinder.
+# IK หมุน orientation ตาม yaw ของลูก (ดู _target_rotation). docs/GRASP.md §7
+_GRASP_REF_QPOS = (0.0, 0.23, 1.15, -0.58, 1.68, 0.4)
 
 
 class ArmIK:
@@ -60,18 +61,28 @@ class ArmIK:
         # เกือบแนวนอน, ปลายไม่แตะพื้น). ท่านี้ jaw ชี้ไปทาง +x (หน้าหุ่น).
         # ตอน solve จะ "หมุนตาม yaw ของลูก" ให้ jaw เข้าหาลูกจากทิศ base→ลูก
         # (ไม่งั้นลูกที่เยื้องซ้าย/ขวาจะเอื้อมไม่ถึง). ดู docs/GRASP.md §7
+        # เก็บ orientation อ้างอิง 2 ทิศ (wrist_roll ±) — ก้ามปูหมุน roll asymmetric
+        # ทิศ + เอื้อม y บวก (ซ้าย), ทิศ − เอื้อม y ลบ (ขวา). เลือกตามฝั่ง y ของลูก
+        # ใน _target_rotation → workspace เต็มทั้งซ้าย-ขวา (100%).
+        self._ref_R_pos = self._ref_orientation(_GRASP_REF_QPOS)
+        neg = list(_GRASP_REF_QPOS)
+        neg[4] = -neg[4]  # กลับทิศ wrist_roll
+        self._ref_R_neg = self._ref_orientation(tuple(neg))
+
+    def _ref_orientation(self, qpos) -> np.ndarray:
         ref = mujoco.MjData(self.model)
-        ref.qpos[:6] = _GRASP_REF_QPOS
+        ref.qpos[:6] = qpos
         mujoco.mj_forward(self.model, ref)
-        self._ref_R = ref.site_xmat[self._sid].reshape(3, 3).copy()
+        return ref.site_xmat[self._sid].reshape(3, 3).copy()
 
     def _target_rotation(self, target_pos: np.ndarray) -> "SO3":
-        """orientation เป้าหมาย = ท่าอ้างอิง หมุนตาม azimuth (yaw) ของลูก
-        → jaw หันเข้าหาลูกจากทิศฐานหุ่น (base อยู่ origin)."""
+        """orientation เป้าหมาย = ท่าอ้างอิง (เลือกทิศ roll ตามฝั่ง y) หมุนตาม
+        azimuth (yaw) ของลูก → นิ้วก้ามปูประกบลูกจากทิศฐานหุ่น เอื้อมได้ทั้ง 2 ฝั่ง."""
+        ref_R = self._ref_R_pos if target_pos[1] >= 0 else self._ref_R_neg
         yaw = float(np.arctan2(target_pos[1], target_pos[0]))
         cz, sz = np.cos(yaw), np.sin(yaw)
         Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
-        return SO3.from_matrix(Rz @ self._ref_R)
+        return SO3.from_matrix(Rz @ ref_R)
 
     def solve(
         self, target_pos: np.ndarray, q_seed: np.ndarray
@@ -87,6 +98,10 @@ class ArmIK:
         """
         q0 = np.zeros(6)
         q0[:5] = np.asarray(q_seed, dtype=np.float64)[:5]
+        # seed wrist_roll ให้ตรงกับฝั่ง y (ก้ามปูหมุน roll asymmetric) — ช่วยให้
+        # convergence ดีทั้งซ้าย-ขวา ไม่ว่า FSM ส่ง seed อะไรมา
+        target_pos = np.asarray(target_pos)
+        q0[4] = abs(_GRASP_REF_QPOS[4]) * (1.0 if target_pos[1] >= 0 else -1.0)
 
         cfg = mink.Configuration(self.model)
         cfg.update(q0)

@@ -11,19 +11,20 @@ colors:
   blue:   [0.15, 0.35, 0.85, 1.0]
   white:  [0.92, 0.92, 0.92, 1.0]
 
-# ทรงของวัตถุ (คำที่ LLM/dataset ใช้เรียก)
-# ขนาดต้องเล็กพอให้ jaw ของ SO-101 คีบได้: jaw ปิดสุดเหลือช่อง ~1.3cm,
-# ตอนคีบวัตถุ jaw บีบที่ ~1.5-2cm → วัตถุเต็มควร ~1.6-2.0cm
-#
-# PHASE 1: เริ่มด้วย ball อย่างเดียว (jaw ทรงโค้งคีบลูกกลมได้ดี). cube ทำ
-# ทีหลัง (jaw โค้งคีบมุม cube ไม่ถนัด ต้องจูน jaw geometry เพิ่ม — ดู docs).
+# ทรงของวัตถุ (คำที่ LLM/dataset ใช้เรียก) — 3 ทรง: ball/cube/cylinder
+# ก้ามปู (นิ้วประกบซ้าย-ขวา) + grasp-assist weld คีบได้ทุกทรง.
+# ขนาดต้อง < ช่อง jaw (~1.3cm ตอนปิด) ในแกนที่คีบ.
 shapes:
   ball:                       # ทรงกลม
     geom_type: sphere
-    radius: 0.010             # ~2cm เส้นผ่านศูนย์กลาง
-  # cube:                     # ทรงสี่เหลี่ยม (PHASE 2 — ยังคีบไม่เสถียร)
-  #   geom_type: box
-  #   half_extent: 0.009
+    radius: 0.010             # เส้นผ่านศูนย์กลาง ~2cm
+  cube:                       # ทรงสี่เหลี่ยม
+    geom_type: box
+    half_extent: 0.010        # ลูกบาศก์ ~2cm
+  cylinder:                   # ทรงกระบอก (วางตั้ง)
+    geom_type: cylinder
+    radius: 0.010             # เส้นผ่านศูนย์กลาง ~2cm
+    half_length: 0.018        # สูง ~3.6cm
 
 # จำนวนชิ้นบนโต๊ะต่อ episode
 num_objects: 5

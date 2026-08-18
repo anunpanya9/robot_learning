@@ -45,8 +45,9 @@ class Phase(enum.Enum):
 
 @dataclass
 class FSMConfig:
-    approach_height: float = 0.05    # สูงเหนือวัตถุตอน approach (เมตร)
-    approach_back: float = 0.06      # ถอยหลังจากลูกตามแนว radial (side-grasp สอดเข้า)
+    approach_height: float = 0.07    # สูงเหนือวัตถุตอน approach (เมตร)
+    approach_back: float = 0.0       # ก้ามปู: approach จากบนตรงๆ (ครอบลงมา 2 นิ้ว)
+                                     # ไม่ถอยหลัง (side-grasp ใช้ >0 สอดจากหลัง)
     grasp_z_offset: float = 0.006    # pinch ที่ ~center ลูก (ไม่ต่ำจนกดลูกจมพื้น)
     lift_height: float = 0.14
     tray_height: float = 0.10

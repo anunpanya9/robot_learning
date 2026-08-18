@@ -145,12 +145,35 @@ _WRIST_CAM_FOVY = 70
 
 ---
 
-## Phase 2: ทำ cube ให้คีบติด (ยังไม่ทำ)
+## 8. ก้ามปู (นิ้วประกบซ้าย-ขวา) + 3 ทรง (ball/cube/cylinder) — ที่ใช้จริง
 
-cube ปิดใน `config/objects.yaml` ไว้ ตัวเลือกที่ควรลอง:
-1. weld grasp-assist ควรใช้ได้กับ cube เหมือน ball (ลอง uncomment cube แล้วเทส)
-2. ถ้าอยาก physics จริง: ทำ jaw pad ให้แบน/มีร่อง + condim=6 + จูน solimp
-3. cube ใหญ่ขึ้นให้ jaw จับถนัด (แต่ไม่เกินช่อง 1.3cm ตอนปิด)
+**เป้าหมาย**: คีบแบบ "ก้ามปู" (นิ้วสองข้างประกบซ้าย-ขวาแนวนอน แบบ parallel
+gripper ตามภาพ Gripper-X) แทน "ตู้คีบตุ๊กตา" (นิ้วหุบบน-ล่าง) + รองรับ 3 ทรง.
+
+**geometry ที่ค้นพบ**: แกน closing ของ jaw = **local x ของ gripper body**.
+ก้ามปู = ทำให้ local-x ขนานพื้น (world-z ≈ 0) → นิ้วประกบแนวนอน. ได้จากท่า
+`_GRASP_REF_QPOS = (0, 0.23, 1.15, -0.58, 1.68, 0.4)` — สำคัญคือ **wrist_roll≈96°**.
+
+**ปัญหา workspace asymmetric + วิธีแก้** ("หมุนซ้ายติดก็หมุนขวาแทน"):
+ก้ามปู wrist_roll=+96° เอื้อม y บวก (ซ้าย) ได้ แต่ y ลบ (ขวา) เอื้อมไม่ถึง
+(err 25mm). แก้: IK เก็บ ref 2 ทิศ (`_ref_R_pos`/`_ref_R_neg`, roll ±) และ
+**เลือกทิศตามฝั่ง y ของลูก** (`_target_rotation` + seed ใน `solve`) → reach
+เต็ม 15/15 ทั้งซ้าย-ขวา.
+
+**FSM approach จากบน** (`approach_back=0`): ก้ามปูนิ้วครอบลงมา 2 ข้าง ต้อง
+approach จากบนตรงๆ (ต่างจาก side-grasp ที่สอดจากหลัง). attach zgap ผ่อนเป็น
+0.022 (ก้ามปู z_gap ตอนคีบ ~17mm).
+
+**3 ทรง**: `config/objects.yaml` มี ball(sphere)/cube(box)/cylinder. grasp-assist
+weld คีบได้ทุกทรง (cube เหลี่ยม/cylinder สูงก็ติด). scene_builder รองรับ
+cylinder (radius+half_length). task string: "pick up the `<color>` `<shape>` ...".
+
+**ผลลัพธ์: success 100% (15/15) — ball 5/5, cube 5/5, cylinder 5/5.**
+→ `_GRASP_REF_QPOS`, `_target_rotation`, `_ref_R_pos/neg` ใน [`collect/ik.py`](../src/robot_learning/collect/ik.py)
+
+> **หมายเหตุ**: IK ก้ามปู (orientation หมุน + 2 ทิศ) ช้ากว่าเดิม → เก็บ dataset
+> ช้าลง. ถ้าต้องเก็บเยอะ พิจารณา cache IK solution ต่อ (color,shape,pos-grid)
+> หรือลด iters (150 พอสำหรับ FSM).
 
 ---
 
