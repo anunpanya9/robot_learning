@@ -111,7 +111,10 @@
                 <site group="3" name="gripperframe" pos="-0.0079 -0.000218121 -0.0981274" quat="0.707107 -0 0.707107 -2.37788e-17"/>
                 <!-- pinch: จุดคีบจริงระหว่างปลาย jaw (ใช้เป็น target ของ IK ตอนหยิบ)
                      ตำแหน่ง local คำนวณจากปลาย jaw ที่ท่า grasp (ดู docs/GRASP.md) -->
-                <site name="pinch" group="3" pos="0.0134 -0.0218 -0.0222" size="0.006" rgba="1 0 1 0.6"/>
+                <!-- pinch = ปลายนิ้วสุด (ไม่ใช่จุดหนีบกลาง) → คีบด้วยปลาย ปลายนิ้ว
+                     หยุดที่ผิววัตถุ ไม่เลยลงทะลุพื้น (เดิม pinch กลางนิ้ว ปลายยื่น
+                     เลยลงใต้พื้น 67mm). weld ช่วยตรึงให้คีบมั่นคง. ดู docs/GRASP §8.3 -->
+                <site name="pinch" group="3" pos="0.0201 0 -0.1027" size="0.006" rgba="1 0 1 0.6"/>
                 <!-- Link moving_jaw_so101_v1 -->
                 <body name="moving_jaw_so101_v1" pos="0.0202 0.0188 -0.0234" quat="0.707107 0.707107 -1.85362e-08 1.85362e-08">
                   <!-- Joint from gripper to moving_jaw_so101_v1 -->

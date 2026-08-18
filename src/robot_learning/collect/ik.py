@@ -35,7 +35,7 @@ _DT = 0.02
 # gripper parallel) เข้าหาลูกจากด้านข้าง — เหมาะกับ sphere/cube/cylinder.
 # calibrate ให้ pinch = "จุดหนีบจริงกึ่งกลางปลายนิ้ว" (ไม่ใช่โคน/servo).
 # IK หมุน orientation ตาม yaw ของลูก (ดู _target_rotation). docs/GRASP.md §8
-_GRASP_REF_QPOS = (0.0, 0.40, 0.20, 0.97, 1.60, 0.5)
+_GRASP_REF_QPOS = (0.0, -0.28, 0.81, 0.50, 1.70, 0.5)
 
 
 class ArmIK:
