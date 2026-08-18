@@ -3,15 +3,19 @@
 ใช้ดูว่าหุ่นทำงานยังไง (ตรวจ scene/grasp ด้วยตา). ต้องรันบนเครื่องที่มีจอ.
 
 รัน:
+    # macOS: ต้องใช้ mjpython (ไม่ใช่ python) — MuJoCo viewer ต้องอยู่ main thread
+    PYTHONPATH=src mjpython scripts/view_fsm.py [--seed N] [--episodes K]
+    # Linux/Windows: python ปกติได้
     PYTHONPATH=src python scripts/view_fsm.py [--seed N] [--episodes K]
 
 ปุ่ม viewer: ลากเมาส์ = หมุนกล้อง, scroll = ซูม, Esc/ปิดหน้าต่าง = ออก.
-ถ้าไม่มีจอ (headless) ให้ใช้ scripts/render_fsm.py แทน (เซฟเป็นวิดีโอ).
+ถ้าไม่มีจอ (headless) ให้ใช้ scripts/render_fsm.py แทน (เซฟเป็นวิดีโอ/gif).
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 
 import mujoco.viewer
@@ -22,6 +26,17 @@ from robot_learning.env import EnvConfig, SO101PickPlaceEnv
 
 
 def main() -> None:
+    # บน macOS ต้องรันด้วย mjpython — เตือนให้ชัดก่อน error งงๆ
+    if sys.platform == "darwin" and "mjpython" not in sys.executable:
+        print(
+            "⚠️  บน macOS ต้องรัน viewer ด้วย mjpython ไม่ใช่ python:\n"
+            "    PYTHONPATH=src mjpython scripts/view_fsm.py\n"
+            "  (ถ้าอยู่ใน venv: PYTHONPATH=src ./.venv/bin/mjpython scripts/view_fsm.py)\n"
+            "  หรือใช้ render_fsm.py เพื่อเซฟเป็น gif แทน (ไม่ต้องเปิดหน้าต่าง)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--episodes", type=int, default=3)

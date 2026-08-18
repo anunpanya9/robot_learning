@@ -49,9 +49,16 @@ Asset ของ SO-101 (MJCF + meshes) อยู่ใน [`assets/so101/`](asse
 
 ### A. ดูฉาก/หุ่นทำงาน (ต้องมีจอ)
 ```bash
-PYTHONPATH=src python scripts/view_fsm.py --seed 0 --episodes 3   # viewer สด
-PYTHONPATH=src python scripts/render_fsm.py --seed 1 --out demo.gif  # เซฟวิดีโอ (headless)
+# viewer สด — macOS ต้องใช้ mjpython (ไม่ใช่ python)!
+PYTHONPATH=src mjpython scripts/view_fsm.py --seed 0 --episodes 3      # macOS
+PYTHONPATH=src python  scripts/view_fsm.py --seed 0 --episodes 3      # Linux/Windows
+
+# เซฟเป็น gif (headless — ใช้ python ปกติได้ทุก OS)
+PYTHONPATH=src python scripts/render_fsm.py --seed 1 --out demo.gif
 ```
+> **หมายเหตุ macOS:** `mjpython` มากับ mujoco แล้ว (อยู่ใน venv). viewer ต้องรันด้วย
+> `mjpython` เพราะ MuJoCo GUI ต้องอยู่ main thread. สคริปต์อื่น (render/record/deploy)
+> ใช้ `python` ปกติได้.
 
 ### B. เก็บ Dataset
 ```bash
