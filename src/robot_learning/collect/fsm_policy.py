@@ -38,6 +38,7 @@ class Phase(enum.Enum):
     GRASP = enum.auto()
     LIFT = enum.auto()
     MOVE_TO_TRAY = enum.auto()
+    LOWER_TO_TRAY = enum.auto()   # ลง pinch ไปก้นถาด (ยังถือ) — วางเบาๆ ไม่ตกจากสูง
     RELEASE = enum.auto()
     RETRACT = enum.auto()
     DONE = enum.auto()
@@ -50,14 +51,15 @@ class FSMConfig:
                                      # ไม่ถอยหลัง (side-grasp ใช้ >0 สอดจากหลัง)
     grasp_z_offset: float = 0.006    # pinch ที่ ~center ลูก (ไม่ต่ำจนกดลูกจมพื้น)
     lift_height: float = 0.14
-    tray_height: float = 0.10
+    tray_height: float = 0.10        # สูงเหนือถาดตอน MOVE_TO_TRAY
+    tray_release_height: float = 0.04  # ลง pinch ใกล้ก้นถาดก่อนปล่อย (วางเบาๆ ไม่ตก)
     # จำนวน control-step ต่อ phase (แขน interpolate ไปให้ถึง — ต้องพอให้
     # แขนวิ่งจากท่า home ที่สูง ลงมาถึงวัตถุ ไม่งั้น descend ค้างกลางทาง)
     steps_move: int = 70
     steps_descend: int = 90          # descend ต้องนานพอให้ pinch ลงทับลูกจริง
     steps_grasp: int = 45            # ปิด jaw
     steps_settle: int = 20           # ค้างให้ jaw บีบแน่นก่อนยก
-    steps_release: int = 25
+    steps_release: int = 30          # เปิด gripper + settle (ลงถาดทำใน LOWER_TO_TRAY)
     ik_fail_thresh: float = 0.05     # IK error เกินนี้ = เอื้อมไม่ถึง
 
 
@@ -68,6 +70,7 @@ _ORDER = [
     Phase.GRASP,
     Phase.LIFT,
     Phase.MOVE_TO_TRAY,
+    Phase.LOWER_TO_TRAY,
     Phase.RELEASE,
     Phase.RETRACT,
     Phase.DONE,
@@ -133,9 +136,16 @@ class FSMPolicy:
         elif self.phase == Phase.MOVE_TO_TRAY:
             self._q_target = ik_to(tray + [0, 0, self.cfg.tray_height])
             self._grip_target = GRIPPER_CLOSED
+        elif self.phase == Phase.LOWER_TO_TRAY:
+            # ลง pinch ไปก้นถาด (ระดับ ~เดียวกับตอนคีบวัตถุ) — *ยังถือ* (ยังไม่ปล่อย)
+            # → พอถึง RELEASE วัตถุถูกวางเบาๆ ที่ก้นถาด ไม่ตกจากที่สูงกระเด็น/กลิ้งออก
+            self._q_target = ik_to(tray + [0, 0, self.cfg.tray_release_height])
+            self._grip_target = GRIPPER_CLOSED
         elif self.phase == Phase.RELEASE:
-            self._grip_target = GRIPPER_OPEN  # ปล่อย (แขนอยู่กับที่)
-            env.set_grasp_enabled(False)  # grasp-assist: ปล่อยวัตถุลงถาด
+            # อยู่ที่ก้นถาดแล้ว — เปิด gripper + ปลด weld (วางเบาๆ)
+            self._q_target = ik_to(tray + [0, 0, self.cfg.tray_release_height])
+            self._grip_target = GRIPPER_OPEN
+            env.set_grasp_enabled(False)
         elif self.phase == Phase.RETRACT:
             self._q_target = ik_to(tray + [0, 0, self.cfg.tray_height + 0.06])
             self._grip_target = GRIPPER_OPEN
@@ -145,6 +155,8 @@ class FSMPolicy:
             return self.cfg.steps_descend
         if self.phase == Phase.GRASP:
             return self.cfg.steps_grasp + self.cfg.steps_settle
+        if self.phase == Phase.LOWER_TO_TRAY:
+            return self.cfg.steps_move   # เวลาลงก้นถาด (แขนวิ่งลง)
         if self.phase == Phase.RELEASE:
             return self.cfg.steps_release
         return self.cfg.steps_move
