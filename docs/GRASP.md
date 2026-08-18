@@ -171,6 +171,23 @@ cylinder (radius+half_length). task string: "pick up the `<color>` `<shape>` ...
 **ผลลัพธ์: success 100% (15/15) — ball 5/5, cube 5/5, cylinder 5/5.**
 → `_GRASP_REF_QPOS`, `_target_rotation`, `_ref_R_pos/neg` ใน [`collect/ik.py`](../src/robot_learning/collect/ik.py)
 
+### 8.1 แก้ pinch site ให้ตรงปลายนิ้วจริง (สำคัญ — วัตถุเคยไปติด servo)
+
+**อาการ**: วัตถุที่คีบไม่อยู่กลางปลายนิ้ว แต่ไปติดที่ **servo/โคน gripper** ตลอด.
+
+**ต้นตอ**: pinch site เดิม (`pos="0.017 0 -0.0345"`) calibrate จาก **geom center**
+ของ mesh ตอนแรก ซึ่งหลอก — geom center ของ mesh `sts3215` (servo) อยู่ใกล้จุดนั้น
+ทำให้ pinch ไปเล็งที่ servo. วัดจริงพบ pinch เดิม **ห่างจุดหนีบจริง 66.6mm!**
+
+**แก้**: คำนวณ **จุดกึ่งกลางปลายนิ้วจริง** จาก mesh vertices ของนิ้วทั้งสอง —
+moving finger (`moving_jaw` mesh) + fixed finger (`wrist_roll_follower` mesh) —
+หา region ปลายสุด (x มากสุด) แล้วเฉลี่ย → pinch ใหม่ `pos="0.008 0 -0.100"`
+(ห่างจุดหนีบจริงแค่ 0.9mm). ต้อง re-calibrate `_GRASP_REF_QPOS` ใหม่ (pinch ลึกลง
+6.6cm กระทบ IK). ผล: วัตถุอยู่ **กลางปลายนิ้ว** + success ยัง 100%.
+
+> บทเรียน: อย่า calibrate จุดคีบจาก geom center — ใช้ **mesh vertices ของปลายนิ้ว**
+> เท่านั้น (servo/มอเตอร์เป็น geom แยกที่ center อาจหลอกให้เข้าใจผิด).
+
 > **หมายเหตุ**: IK ก้ามปู (orientation หมุน + 2 ทิศ) ช้ากว่าเดิม → เก็บ dataset
 > ช้าลง. ถ้าต้องเก็บเยอะ พิจารณา cache IK solution ต่อ (color,shape,pos-grid)
 > หรือลด iters (150 พอสำหรับ FSM).

@@ -33,8 +33,9 @@ _DT = 0.02
 # ท่าอ้างอิงสำหรับ orientation ของ pinch ที่ IK จะเล็ง.
 # "ก้ามปู": หมุน wrist_roll≈96° ให้นิ้วสองข้างประกบซ้าย-ขวา (คีบแนวนอน แบบ
 # gripper parallel) เข้าหาลูกจากด้านข้าง — เหมาะกับ sphere/cube/cylinder.
-# IK หมุน orientation ตาม yaw ของลูก (ดู _target_rotation). docs/GRASP.md §7
-_GRASP_REF_QPOS = (0.0, 0.23, 1.15, -0.58, 1.68, 0.4)
+# calibrate ให้ pinch = "จุดหนีบจริงกึ่งกลางปลายนิ้ว" (ไม่ใช่โคน/servo).
+# IK หมุน orientation ตาม yaw ของลูก (ดู _target_rotation). docs/GRASP.md §8
+_GRASP_REF_QPOS = (0.0, 0.16, 0.42, 1.00, 1.68, 0.2)
 
 
 class ArmIK:
