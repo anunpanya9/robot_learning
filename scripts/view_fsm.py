@@ -26,8 +26,10 @@ from robot_learning.env import EnvConfig, SO101PickPlaceEnv
 
 
 def main() -> None:
-    # บน macOS ต้องรันด้วย mjpython — เตือนให้ชัดก่อน error งงๆ
-    if sys.platform == "darwin" and "mjpython" not in sys.executable:
+    # บน macOS ต้องรันด้วย mjpython — เตือนให้ชัดก่อน error งงๆ.
+    # mjpython ตั้ง sys.executable เป็น python ปกติ (เช็คชื่อไม่ได้) แต่จะตั้ง
+    # mujoco.viewer._MJPYTHON เป็น object (ไม่ใช่ None) → ใช้ตัวนี้เช็คแทน.
+    if sys.platform == "darwin" and getattr(mujoco.viewer, "_MJPYTHON", None) is None:
         print(
             "⚠️  บน macOS ต้องรัน viewer ด้วย mjpython ไม่ใช่ python:\n"
             "    PYTHONPATH=src mjpython scripts/view_fsm.py\n"
