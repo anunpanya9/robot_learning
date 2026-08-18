@@ -30,8 +30,10 @@ _DEFAULT_ITERS = 250
 _SOLVER = "daqp"
 _DT = 0.02
 
-# ท่าอ้างอิงที่ jaw ชี้ลงสวย (ใช้จับ orientation ของ pinch เป็น target ให้ IK)
-_GRASP_REF_QPOS = (0.0, -0.7, 0.9, 1.5, 0.0, 0.5)
+# ท่าอ้างอิงสำหรับ orientation ของ pinch ที่ IK จะเล็ง.
+# side-grasp: jaw เฉียงเข้าหาลูกเกือบแนวนอน (ปลาย jaw ไม่แตะพื้น z≈0.025)
+# แทนท่าเดิมที่ jaw ชี้ดิ่งลง (ปลายเฉียดพื้น). ดู docs/GRASP.md §7
+_GRASP_REF_QPOS = (0.0, 0.30, 0.60, 0.30, 0.0, 0.5)
 
 
 class ArmIK:
@@ -54,14 +56,22 @@ class ArmIK:
         self._sid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, PINCH_SITE)
         self._site_name = PINCH_SITE
         self._orientation_cost = orientation_cost
-        # target orientation: จับจากท่าอ้างอิงที่ jaw ชี้ลงสวย (pinch z-axis ≈ world +z)
-        # การล็อก orientation นี้ทำให้ทุก grasp เข้าหาวัตถุแบบ "jaw ชี้ลง" เหมือนกัน
-        # → gripper คร่อมวัตถุจากบน ไม่ปัดวัตถุด้านข้าง
+        # target orientation อ้างอิง: จับจากท่า side-grasp (jaw เฉียงเข้าหาลูก
+        # เกือบแนวนอน, ปลายไม่แตะพื้น). ท่านี้ jaw ชี้ไปทาง +x (หน้าหุ่น).
+        # ตอน solve จะ "หมุนตาม yaw ของลูก" ให้ jaw เข้าหาลูกจากทิศ base→ลูก
+        # (ไม่งั้นลูกที่เยื้องซ้าย/ขวาจะเอื้อมไม่ถึง). ดู docs/GRASP.md §7
         ref = mujoco.MjData(self.model)
         ref.qpos[:6] = _GRASP_REF_QPOS
         mujoco.mj_forward(self.model, ref)
-        R = ref.site_xmat[self._sid].reshape(3, 3).copy()
-        self._target_R = SO3.from_matrix(R)
+        self._ref_R = ref.site_xmat[self._sid].reshape(3, 3).copy()
+
+    def _target_rotation(self, target_pos: np.ndarray) -> "SO3":
+        """orientation เป้าหมาย = ท่าอ้างอิง หมุนตาม azimuth (yaw) ของลูก
+        → jaw หันเข้าหาลูกจากทิศฐานหุ่น (base อยู่ origin)."""
+        yaw = float(np.arctan2(target_pos[1], target_pos[0]))
+        cz, sz = np.cos(yaw), np.sin(yaw)
+        Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+        return SO3.from_matrix(Rz @ self._ref_R)
 
     def solve(
         self, target_pos: np.ndarray, q_seed: np.ndarray
@@ -89,8 +99,9 @@ class ArmIK:
         )
         posture = mink.PostureTask(self.model, cost=1e-4)
         posture.set_target(q0)
+        target_R = self._target_rotation(np.asarray(target_pos))
         frame_task.set_target(
-            SE3.from_rotation_and_translation(self._target_R, np.asarray(target_pos))
+            SE3.from_rotation_and_translation(target_R, np.asarray(target_pos))
         )
 
         for _ in range(self.iters):

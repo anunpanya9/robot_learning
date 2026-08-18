@@ -45,8 +45,9 @@ class Phase(enum.Enum):
 
 @dataclass
 class FSMConfig:
-    approach_height: float = 0.07    # สูงเหนือวัตถุตอน approach (เมตร)
-    grasp_z_offset: float = 0.006    # pinch ลงใกล้ center ลูก (ไม่ต่ำจนกดลูกจมพื้น)
+    approach_height: float = 0.05    # สูงเหนือวัตถุตอน approach (เมตร)
+    approach_back: float = 0.06      # ถอยหลังจากลูกตามแนว radial (side-grasp สอดเข้า)
+    grasp_z_offset: float = 0.006    # pinch ที่ ~center ลูก (ไม่ต่ำจนกดลูกจมพื้น)
     lift_height: float = 0.14
     tray_height: float = 0.10
     # จำนวน control-step ต่อ phase (แขน interpolate ไปให้ถึง — ต้องพอให้
@@ -98,6 +99,14 @@ class FSMPolicy:
         tgt = env.target_position()
         tray = env.tray_position()
 
+        # ทิศ radial (จากฐานหุ่นที่ origin → ลูก) ในระนาบ xy — jaw ของ side-grasp
+        # ยื่นเข้าหาลูกตามแนวนี้. approach จาก "ด้านหลังลูก" (ถอยตามแนว radial)
+        # แล้วเลื่อนเข้า → jaw สอดเข้าคีบไม่เสยลูกกระเด็น.
+        radial = np.array([tgt[0], tgt[1], 0.0])
+        n = np.linalg.norm(radial)
+        radial = radial / n if n > 1e-6 else np.array([1.0, 0.0, 0.0])
+        back = self.cfg.approach_back      # ถอยหลังจากลูก (เมตร)
+
         def ik_to(goal):
             q, err = self.ik.solve(goal, cur_arm)
             if err > self.cfg.ik_fail_thresh:
@@ -105,13 +114,15 @@ class FSMPolicy:
             return q
 
         if self.phase == Phase.APPROACH_ABOVE:
-            self._q_target = ik_to(tgt + [0, 0, self.cfg.approach_height])
+            # ด้านหลังลูก + สูงเล็กน้อย (เตรียมสอดเข้า)
+            goal = tgt - back * radial + [0, 0, self.cfg.approach_height]
+            self._q_target = ik_to(goal)
             self._grip_target = GRIPPER_OPEN
         elif self.phase == Phase.DESCEND:
+            # เลื่อนเข้าหาลูกในแนว radial (pinch ไปที่ลูกพอดี) — jaw สอดเข้าคีบ
             self._q_target = ik_to(tgt + [0, 0, self.cfg.grasp_z_offset])
             self._grip_target = GRIPPER_OPEN
-            # เปิด grasp-assist ตั้งแต่ descend: weld จะ attach ทันทีที่ pinch ทับลูก
-            # (จับ 'ก่อน' jaw ปิดดันลูกกระเด็น) — ลูก snap ไปจุดหนีบ pinch
+            # เปิด grasp-assist: weld attach ตอน pinch เข้าถึงลูก (ก่อน jaw ปิด)
             env.set_grasp_enabled(True)
         elif self.phase == Phase.GRASP:
             self._grip_target = GRIPPER_CLOSED  # ปิด jaw หนีบลูก (ดูสมจริง)

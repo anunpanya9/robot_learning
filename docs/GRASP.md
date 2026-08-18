@@ -120,6 +120,30 @@ _WRIST_CAM_FOVY = 70
 
 ---
 
+## 7. เปลี่ยนเป็น side-grasp (ปลาย jaw ไม่แตะพื้น + ลูกไม่ลอย)
+
+**อาการเดิม (top-down)**: jaw ชี้ดิ่งลงคีบลูกที่พื้น → ปลาย jaw เฉียดพื้น (ดูเหมือน
+ทะลุ) + พื้นเงาสะท้อนลูกกลับหัวทำให้ดูเหมือน "ลูกลอย" + weld attach ตอน pinch ยัง
+สูงเหนือลูก → ลูกกระโดดลอยขึ้น.
+
+**แก้ 3 จุด:**
+1. **side-grasp** — เปลี่ยน `_GRASP_REF_QPOS` เป็นท่า jaw เฉียงเข้าหาลูกเกือบแนวนอน
+   (`0, 0.30, 0.60, 0.30, 0`) → ปลาย jaw ต่ำสุด ~3mm เหนือพื้น (ไม่แตะ). IK
+   **หมุน orientation ตาม yaw ของลูก** (`_target_rotation`) ให้ jaw เข้าหาลูกจาก
+   ทิศ base→ลูก — ไม่งั้นลูกที่เยื้องซ้าย/ขวาเอื้อมไม่ถึง (fixed orientation reach แค่ y=0).
+2. **approach จากด้านหลังลูก** — FSM `APPROACH` ไปที่ `tgt - back*radial + [0,0,h]`
+   (ถอยหลังตามแนว base→ลูก) แล้ว `DESCEND` เลื่อนเข้าในแนว radial → jaw สอดเข้าคีบ
+   **ไม่เสยลูกกระเด็น** (top-down approach จากบนทำ jaw แนวราบเสยลูก).
+3. **พื้นด้าน** — `reflectance=0` (เดิม 0.05) ตัดเงาสะท้อนที่ทำให้ดูลูกลอย +
+   attach เฉพาะตอน pinch ถึงระดับลูก (`_GRASP_ATTACH_ZGAP`) กันลูกกระโดด.
+
+ผลลัพธ์: jaw คีบด้านข้างลูกดูธรรมชาติ, ปลายไม่แตะพื้น, ลูกไม่ลอย (jump ~3mm),
+**success 100% (10/10)** ทุกสี.
+→ `_GRASP_REF_QPOS`, `_target_rotation` ใน [`collect/ik.py`](../src/robot_learning/collect/ik.py);
+  `approach_back`, radial approach ใน [`collect/fsm_policy.py`](../src/robot_learning/collect/fsm_policy.py)
+
+---
+
 ## Phase 2: ทำ cube ให้คีบติด (ยังไม่ทำ)
 
 cube ปิดใน `config/objects.yaml` ไว้ ตัวเลือกที่ควรลอง:
@@ -133,12 +157,14 @@ cube ปิดใน `config/objects.yaml` ไว้ ตัวเลือกท
 
 | ที่ไหน | พารามิเตอร์ | ค่าปัจจุบัน | ผล |
 |--------|-------------|-------------|-----|
-| `ik.py` | `_DEFAULT_ORIENTATION_COST` | 0.5 | สูง=jaw ชี้ลงตรง แต่ reach แคบ |
+| `ik.py` | `_GRASP_REF_QPOS` | (0,0.30,0.60,0.30,0,0.5) | ท่า side-grasp (jaw เฉียง ปลายไม่แตะพื้น) |
+| `ik.py` | `_target_rotation` | หมุนตาม yaw ลูก | jaw เข้าหาลูกจากทิศ base→ลูก (reach ทั้งโซน) |
 | `ik.py` | `_DEFAULT_ITERS` | 250 (150 ตอนเทส) | มาก=แม่น แต่ช้า |
 | `scene_builder.py` | `ARM_KP_SCALE` / `ARM_FORCERANGE` | 3.0 / 10 | hold ท่าแม่น |
-| `so101_env.py` | `_GRASP_ATTACH_DIST` | 0.04 | ระยะ pinch ที่ weld จับ (แคบ=ทับลูกจริง) |
+| `scene_base.xml` | `tablemat reflectance` | 0 | พื้นด้าน ไม่เงาสะท้อน (ลูกไม่ดูลอย) |
+| `so101_env.py` | `_GRASP_ATTACH_DIST` / `_ZGAP` | 0.04 / 0.015 | ระยะ+ความสูง pinch ที่ weld จับ |
 | `so101_env.py` | `_set_weld_relpose` | snap-to-pinch | ตรึงลูกที่จุดหนีบ (ดูสมจริง) |
-| `fsm_policy.py` | `grasp_z_offset` | 0.006 | pinch ลงใกล้ center ลูก (ไม่กดจมพื้น) |
-| `fsm_policy.py` | `steps_descend` | 90 | descend นานพอให้ pinch ทับลูก |
-| `fsm_policy.py` | `steps_move/grasp` | 70/45 | เวลาแขนวิ่งต่อ phase |
+| `fsm_policy.py` | `approach_back` | 0.06 | ถอยหลังตามแนว radial (side-grasp สอดเข้า) |
+| `fsm_policy.py` | `grasp_z_offset` | 0.006 | pinch ที่ ~center ลูก |
+| `fsm_policy.py` | `steps_move/descend/grasp` | 70/90/45 | เวลาแขนวิ่งต่อ phase |
 | `objects.yaml` | `ball.radius` | 0.010 | ขนาดวัตถุ (ต้อง < ช่อง jaw) |
