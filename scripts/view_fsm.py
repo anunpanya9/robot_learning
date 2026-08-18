@@ -46,14 +46,16 @@ def main() -> None:
 
     env = SO101PickPlaceEnv(EnvConfig(image_h=64, image_w=64, seed=args.seed))
     ik = ArmIK()
-    obs, info = env.reset()
 
-    with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
-        for ep in range(args.episodes):
-            obs, info = env.reset()
-            print(f"[ep{ep}] task: {info['task']}")
-            fsm = FSMPolicy(ik=ik)
-            steps = 0
+    # สำคัญ: env.reset() สร้าง model/data ใหม่ทุกครั้ง (scene สุ่มใหม่) →
+    # ต้อง launch viewer *หลัง* reset และ *ใหม่ต่อ 1 episode* ไม่งั้น viewer จะ
+    # ผูกกับ data ตัวเก่าที่ไม่ถูก step → หุ่นไม่ขยับ (แม้ log เปลี่ยน).
+    for ep in range(args.episodes):
+        obs, info = env.reset()
+        print(f"[ep{ep}] task: {info['task']}")
+        fsm = FSMPolicy(ik=ik)
+        steps = 0
+        with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
             while not fsm.done and steps < 500 and viewer.is_running():
                 action = fsm.act(obs, env)
                 obs, r, term, trunc, info = env.step(action)
@@ -62,10 +64,13 @@ def main() -> None:
                 steps += 1
                 if term:
                     break
-            print(f"[ep{ep}] success={info['is_success']} steps={steps}")
-            if not viewer.is_running():
-                break
-            time.sleep(0.5)
+            # ค้างท้าย episode ให้ดูผลสักครู่
+            for _ in range(20):
+                if not viewer.is_running():
+                    break
+                viewer.sync()
+                time.sleep(0.05)
+        print(f"[ep{ep}] success={info['is_success']} steps={steps}")
 
     env.close()
 
