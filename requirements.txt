@@ -1,0 +1,24 @@
+# ── Core simulation (จำเป็นสำหรับเก็บ dataset บน Mac) ──────────────────
+mujoco>=3.11.0          # physics engine + renderer (headless ได้)
+numpy>=1.26
+pyyaml>=6.0             # อ่าน config/objects.yaml
+mink>=0.0.5             # inverse kinematics บน MuJoCo (ใช้ใน FSM)
+imageio>=2.34           # เซฟภาพ/วิดีโอตอน debug
+tqdm>=4.66
+
+# ── Dataset / Policy (LeRobot) ─────────────────────────────────────────
+# ตรึงเวอร์ชันตอนเริ่มจริง; ยึด LeRobotDataset v3.0 + CLI lerobot-record/train/eval
+lerobot>=0.5.0
+
+# ── Voice deploy (Phase D) ─────────────────────────────────────────────
+faster-whisper>=1.0     # STT local (ไทย/อังกฤษ)
+sounddevice>=0.4.6      # อัดเสียงจาก mic
+ollama>=0.3.0           # client คุย local LLM (ต้องติดตั้ง Ollama server แยก)
+
+# ── Teleop (optional, M9) ──────────────────────────────────────────────
+pygame>=2.5             # อ่านจอย Xbox
+
+# NOTE:
+#  - การ train SmolVLA ต้องใช้ GPU (CUDA). เครื่อง Mac ไม่มี CUDA →
+#    ติดตั้ง lerobot + train บน Colab/cloud (ดู notebooks/train_smolvla_colab.ipynb)
+#  - บน Mac ติดตั้งแค่ core + voice ก็พอสำหรับเก็บ dataset และ deploy inference (CPU/MPS)

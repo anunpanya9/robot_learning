@@ -1,0 +1,68 @@
+<!--
+  scene_base.xml — ฉากพื้นฐานสำหรับงาน pick & place ของ SO-101
+
+  ประกอบด้วย:
+    - หุ่น SO-101 (include so101.xml) ตั้งบนพื้น (base ที่ origin)
+    - โต๊ะ (พื้นเรียบ ระดับ z=0 ให้ตรงกับฐานหุ่น)
+    - ถาด (tray/bin) แบบมีผนัง 4 ด้าน วางด้านข้างหุ่น
+    - แสง + กล้อง 2 ตัว: "top" (มองลงโต๊ะ) และ "wrist" (ติดปลายแขน)
+
+  วัตถุ (5 ชิ้น หลากสี/ทรง) *ไม่* อยู่ในไฟล์นี้ — จะถูกฉีดเข้าแบบ dynamic
+  โดย scene_builder.py (เพราะต้องสุ่มสี/ทรง/ตำแหน่งต่อ episode)
+
+  ค่าตำแหน่งถาด/ขนาด สอดคล้องกับ config/objects.yaml (tray: pos [0.05,0.24,0]).
+  ถ้าแก้ config ต้องแก้ที่นี่ให้ตรงกัน (หรือ generate จากโค้ด — ดู scene_builder).
+-->
+<mujoco model="so101_pickplace">
+  <include file="so101.xml"/>
+
+  <option integrator="implicitfast" cone="elliptic" impratio="10"/>
+  <!-- cone=elliptic + impratio สูง ช่วยให้ contact การคีบมั่นคงขึ้น -->
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.35 0.35 0.35" specular="0.1 0.1 0.1"/>
+    <global azimuth="150" elevation="-25" offwidth="640" offheight="480"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.35 0.5 0.7" rgb2="0.05 0.08 0.12"
+             width="256" height="256"/>
+    <texture type="2d" name="tabletex" builtin="checker" mark="edge"
+             rgb1="0.55 0.55 0.58" rgb2="0.45 0.45 0.48" markrgb="0.3 0.3 0.3"
+             width="300" height="300"/>
+    <material name="tablemat" texture="tabletex" texuniform="true" texrepeat="4 4" reflectance="0.05"/>
+    <material name="traymat" rgba="0.25 0.25 0.28 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0.2 0 1.2" dir="0 0 -1" directional="true" diffuse="0.5 0.5 0.5"/>
+    <light pos="0.4 0.4 1.0" dir="-0.3 -0.3 -1" diffuse="0.4 0.4 0.4"/>
+
+    <!-- โต๊ะ: พื้นเรียบระดับ z=0 (ฐานหุ่นวางบนนี้) -->
+    <geom name="table" type="plane" pos="0.2 0 0" size="0.6 0.6 0.05"
+          material="tablemat" friction="1 0.05 0.001"/>
+
+
+    <!-- กล้อง top: มองลงโต๊ะเกือบตรงจากด้านบน-หน้าเล็กน้อย
+         วางเยื้องไป +x (หน้าหุ่น) เพื่อเห็นโซนวัตถุ+ถาด โดยแขนไม่บังกลางเฟรม -->
+    <camera name="top" pos="0.22 0.08 0.6" xyaxes="1 0 0 0 1 0.35" fovy="58"/>
+
+    <!-- ถาด (bin) วางซ้ายมือหุ่นที่ (0.05, 0.24) ระดับพื้นโต๊ะ. ผนัง 4 ด้าน + ก้น.
+         gripper คีบวัตถุที่พื้นได้เพราะ collision ระหว่างมือหุ่นกับพื้น/ถาด ถูก
+         ปิดไว้ (ดู set_hand_collision_filter ใน scene_builder) — gripper ยังชน
+         *วัตถุ* ปกติ แต่ทะลุผ่านผิวโต๊ะ/ถาดได้ จึงเอื้อมหยิบของที่พื้นได้. -->
+    <body name="tray" pos="0.05 0.24 0">
+      <geom name="tray_floor" type="box" pos="0 0 0.003" size="0.066 0.066 0.003"
+            material="traymat" friction="1 0.05 0.001"/>
+      <geom name="tray_wall_px" type="box" pos="0.066 0 0.018" size="0.006 0.066 0.015" material="traymat"/>
+      <geom name="tray_wall_nx" type="box" pos="-0.066 0 0.018" size="0.006 0.066 0.015" material="traymat"/>
+      <geom name="tray_wall_py" type="box" pos="0 0.066 0.018" size="0.066 0.006 0.015" material="traymat"/>
+      <geom name="tray_wall_ny" type="box" pos="0 -0.066 0.018" size="0.066 0.006 0.015" material="traymat"/>
+      <!-- site กลางถาด: จุดเป้าหมายตอนวางวัตถุ + ใช้เช็ค success -->
+      <site name="tray_center" pos="0 0 0.02" size="0.01" rgba="0 1 0 0.3"/>
+    </body>
+  </worldbody>
+
+  <!-- กล้อง wrist ถูกเพิ่มแบบ dynamic โดย scene_builder (attach เข้า body "gripper")
+       ที่นี่ไม่ใส่ เพราะต้องอ้าง body ของหุ่นซึ่ง include เข้ามา -->
+</mujoco>

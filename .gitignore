@@ -1,0 +1,42 @@
+# ── Virtual environment (มี absolute path ของเครื่อง — ห้าม commit) ──
+.venv/
+venv/
+env/
+ENV/
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+
+# ── Dataset / model outputs (ไฟล์ใหญ่ + อาจมี path/ชื่อ user) ──
+data/
+outputs/
+checkpoints/
+wandb/
+*.mp4
+# หมายเหตุ: gif ตัวอย่างใน docs/media/ เก็บได้ (ไม่ ignore)
+!docs/media/*.gif
+
+# ── HuggingFace cache (มี path เครื่อง) ──
+.cache/
+hf_home/
+
+# ── Notebook checkpoints ──
+.ipynb_checkpoints/
+
+# ── OS / IDE ──
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# ── Secrets (กันหลุด token/key) ──
+.env
+*.token
+hf_token.txt
