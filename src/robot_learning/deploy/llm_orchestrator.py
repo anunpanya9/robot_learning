@@ -28,29 +28,35 @@ from dataclasses import dataclass
 from robot_learning.env.scene_randomizer import build_task_string
 from robot_learning.env.scene_builder import SpawnedObject
 
-# สีที่ระบบรองรับ (ตรงกับ config/objects.yaml)
+# สี/ทรงที่ระบบรองรับ (ตรงกับ config/objects.yaml)
 SUPPORTED_COLORS = ["red", "yellow", "green", "blue", "white"]
+SUPPORTED_SHAPES = ["ball", "cube", "cylinder"]
 
 SYSTEM_PROMPT = """You are the command parser for a robot arm that picks colored
-balls and puts them in a tray. Convert the user's request (Thai or English) into
-a strict JSON plan. Only these colors exist: red, yellow, green, blue, white.
+objects and puts them in a tray. Convert the user's request (Thai or English) into
+a strict JSON plan.
+Colors: red, yellow, green, blue, white. Shapes: ball, cube, cylinder.
 
 Rules:
-- "steps": ordered list of {"color": <one of the colors>, "action": "pick"}.
-- If the user asks to collect ALL of one color, still emit one pick step for that
-  color (the runtime repeats until none of that color remain).
+- "steps": ordered list of {"color": <color>, "shape": <shape>, "action": "pick"}.
+- If the user says only a color (no shape), default shape to "ball".
+- If the user asks to collect ALL of one color/shape, emit one pick step for it
+  (the runtime repeats until none remain).
 - "dump_after": true if the user wants to empty/pour the tray after picking.
 - Respond with ONLY the JSON object, no prose, no markdown fences.
 
 Examples:
 User: "หยิบลูกบอลสีแดงใส่ถาด"
-JSON: {"steps": [{"color": "red", "action": "pick"}], "dump_after": false}
+JSON: {"steps": [{"color": "red", "shape": "ball", "action": "pick"}], "dump_after": false}
 
-User: "เก็บของสีน้ำเงินทั้งหมดแล้วเท"
-JSON: {"steps": [{"color": "blue", "action": "pick"}], "dump_after": true}
+User: "หยิบลูกบาศก์สีน้ำเงิน"
+JSON: {"steps": [{"color": "blue", "shape": "cube", "action": "pick"}], "dump_after": false}
 
-User: "pick the green ball then the yellow one"
-JSON: {"steps": [{"color": "green", "action": "pick"}, {"color": "yellow", "action": "pick"}], "dump_after": false}
+User: "เก็บทรงกระบอกสีเขียวแล้วเท"
+JSON: {"steps": [{"color": "green", "shape": "cylinder", "action": "pick"}], "dump_after": true}
+
+User: "pick the green cube then the yellow ball"
+JSON: {"steps": [{"color": "green", "shape": "cube", "action": "pick"}, {"color": "yellow", "shape": "ball", "action": "pick"}], "dump_after": false}
 """
 
 
@@ -61,12 +67,14 @@ class Plan:
 
     def task_strings(self) -> list[str]:
         """แปลงแต่ละ step → task string ให้ SmolVLA (ผ่าน build_task_string)."""
+        geom = {"ball": "sphere", "cube": "box", "cylinder": "cylinder"}
         out = []
         for s in self.steps:
+            shape = s.get("shape", "ball")
             # ใช้ SpawnedObject จำลองเพื่อ reuse build_task_string (ให้ตรงกับ dataset)
             fake = SpawnedObject(
-                name="", color=s["color"], shape="ball",
-                rgba=(0, 0, 0, 1), geom_type="sphere", size=0.01, pos=(0, 0, 0),
+                name="", color=s["color"], shape=shape,
+                rgba=(0, 0, 0, 1), geom_type=geom[shape], size=0.01, pos=(0, 0, 0),
             )
             out.append(build_task_string(fake))
         return out
@@ -107,25 +115,40 @@ class LLMOrchestrator:
         steps = []
         for s in data.get("steps", []):
             color = str(s.get("color", "")).lower()
+            shape = str(s.get("shape", "ball")).lower()
+            if shape not in SUPPORTED_SHAPES:
+                shape = "ball"
             if color in SUPPORTED_COLORS:
-                steps.append({"color": color, "action": "pick"})
+                steps.append({"color": color, "shape": shape, "action": "pick"})
         if not steps:
             raise ValueError("ไม่พบสีที่รองรับใน LLM output")
         return Plan(steps=steps, dump_after=bool(data.get("dump_after", False)))
 
     def _keyword_fallback(self, text: str) -> Plan:
-        """สกัดสีจากคำ (ไทย+อังกฤษ) ถ้า LLM ใช้ไม่ได้."""
-        th = {"แดง": "red", "เหลือง": "yellow", "เขียว": "green",
-              "น้ำเงิน": "blue", "ฟ้า": "blue", "ขาว": "white"}
+        """สกัดสี+ทรงจากคำ (ไทย+อังกฤษ) ถ้า LLM ใช้ไม่ได้.
+
+        ข้อจำกัด: fallback ใช้ 'ทรงเดียว' กับทุกสีในคำสั่ง (จับ shape แรกที่เจอ).
+        คำสั่งซับซ้อน (หลายทรงต่างกันในประโยคเดียว) ต้องใช้ Ollama LLM จริง
+        ซึ่ง parse สี-ทรงต่อ step ได้ถูกต้อง.
+        """
+        th_color = {"แดง": "red", "เหลือง": "yellow", "เขียว": "green",
+                    "น้ำเงิน": "blue", "ฟ้า": "blue", "ขาว": "white"}
+        th_shape = {"ลูกบอล": "ball", "ลูกบาศก์": "cube", "สี่เหลี่ยม": "cube",
+                    "ทรงกระบอก": "cylinder", "กระบอก": "cylinder", "ลูกกลม": "ball"}
         low = text.lower()
+        # หาทรง (ถ้าไม่ระบุ = ball)
+        shape = "ball"
+        for w, s in {**{k: k for k in SUPPORTED_SHAPES}, **th_shape}.items():
+            if w in low or w in text:
+                shape = s
+                break
         found = [c for c in SUPPORTED_COLORS if c in low]
-        found += [en for th_w, en in th.items() if th_w in text]
-        # unique รักษาลำดับ
+        found += [en for th_w, en in th_color.items() if th_w in text]
         seen, steps = set(), []
         for c in found:
             if c not in seen:
                 seen.add(c)
-                steps.append({"color": c, "action": "pick"})
+                steps.append({"color": c, "shape": shape, "action": "pick"})
         if not steps:
             raise ValueError(f"หาสีไม่เจอในคำสั่ง: {text!r}")
         dump = any(w in text for w in ["เท", "dump", "pour", "empty"])

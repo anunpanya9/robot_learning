@@ -47,10 +47,12 @@ lerobot-train \
 | `observation.images.wrist` | กล้องปลายแขน (RGB) |
 | `observation.state`        | joint positions [6] |
 | `action`                   | joint targets [6] |
-| `task`                     | instruction เช่น "pick up the red ball and put it in the tray" |
+| `task`                     | instruction เช่น "pick up the red cube and put it in the tray" |
 
 > **สำคัญ:** task string เป็นภาษาอังกฤษ — คือสิ่งที่ SmolVLA ใช้ condition
-> การเก็บต้อง balance ทุกสีเท่าๆ กัน (randomizer ทำ round-robin ให้แล้ว)
+> รูปแบบ: `"pick up the <color> <shape> and put it in the tray"` (color ∈ 5 สี,
+> shape ∈ ball/cube/cylinder). randomizer balance ทุก (สี×ทรง) แบบ round-robin
+> ให้แล้ว → dataset ครอบคลุมสั่งได้ทั้งสีและทรง (เช่น "หยิบทรงกระบอกสีแดง").
 
 ## 5. จำนวน dataset ที่แนะนำ
 

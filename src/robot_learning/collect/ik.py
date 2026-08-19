@@ -26,7 +26,9 @@ from robot_learning.utils.constants import PINCH_SITE, SO101_MJCF
 
 # orientation cost สูงพอให้ jaw ชี้ลงตาม target rotation (ดู _grasp_down_rotation)
 _DEFAULT_ORIENTATION_COST = 0.5
-_DEFAULT_ITERS = 250
+# iters=60 ให้ accuracy เท่า 250 (err ~14mm เท่ากัน) แต่เร็ว ~4 เท่า → เก็บ
+# dataset เร็วขึ้นมาก (IK เป็นคอขวดหลักตอนเก็บ). ดู docs/GRASP.md §8
+_DEFAULT_ITERS = 60
 _SOLVER = "daqp"
 _DT = 0.02
 
